@@ -1,1226 +1,1114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lucas Palmquist — Engineering & Design</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🛒 FreshMart — Multiplayer Supermarket</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 
-    :root {
-      --bg: #0a0d14;
-      --surface: #111520;
-      --border: rgba(255,255,255,0.07);
-      --text: #e8eaf2;
-      --muted: #6b7280;
-      --accent: #4af0c4;
-      --accent2: #f0a44a;
-      --accent3: #8b5cf6;
-      --white: #ffffff;
-      --card-bg: #131826;
-    }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { scroll-behavior: smooth; }
+:root {
+  --bg:        #0a0e14;
+  --surf:      #111720;
+  --surf2:     #1a2233;
+  --border:    #263047;
+  --green:     #10b981;
+  --green-lo:  rgba(16,185,129,.12);
+  --orange:    #f97316;
+  --orange-lo: rgba(249,115,22,.12);
+  --red:       #ef4444;
+  --red-lo:    rgba(239,68,68,.12);
+  --blue:      #6366f1;
+  --blue-lo:   rgba(99,102,241,.12);
+  --yellow:    #eab308;
+  --yellow-lo: rgba(234,179,8,.12);
+  --cyan:      #06b6d4;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --font:      'Syne', sans-serif;
+  --mono:      'DM Mono', monospace;
+}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
-      font-size: 14px;
-      line-height: 1.7;
-      overflow-x: hidden;
-    }
+html, body { height: 100%; overflow: hidden; }
 
-    /* ── NOISE OVERLAY ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 999;
-      opacity: 0.4;
-    }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  display: flex;
+  flex-direction: column;
+}
 
-    /* ── CURSOR ── */
-    .cursor {
-      width: 10px; height: 10px;
-      background: var(--accent);
-      border-radius: 50%;
-      position: fixed;
-      pointer-events: none;
-      z-index: 1000;
-      mix-blend-mode: screen;
-      transition: transform 0.15s ease, opacity 0.2s;
-    }
-    .cursor-ring {
-      width: 34px; height: 34px;
-      border: 1.5px solid var(--accent);
-      border-radius: 50%;
-      position: fixed;
-      pointer-events: none;
-      z-index: 1000;
-      opacity: 0.45;
-      transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.2s;
-    }
+/* ── Utility ── */
+input, button { font-family: var(--font); }
+input { background: var(--surf2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: 14px; outline: none; transition: border-color .2s; width: 100%; }
+input:focus { border-color: var(--green); }
+input::placeholder { color: var(--muted); }
 
-    /* ── NAV ── */
-    nav {
-      position: fixed; top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 48px;
-      background: rgba(10,13,20,0.8);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 16px;
-      letter-spacing: 0.02em;
-      color: var(--white);
-    }
-    .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 36px; list-style: none; }
-    .nav-links a {
-      text-decoration: none;
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      transition: color 0.2s;
-    }
-    .nav-links a:hover { color: var(--accent); }
+.btn {
+  background: var(--green); color: #000; border: none; border-radius: 10px;
+  padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity .15s, transform .1s; white-space: nowrap;
+}
+.btn:hover { opacity: .88; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn.secondary { background: var(--surf2); color: var(--text); border: 1.5px solid var(--border); }
+.btn.red    { background: var(--red);    color: #fff; }
+.btn.blue   { background: var(--blue);   color: #fff; }
+.btn.orange { background: var(--orange); color: #000; }
+.btn.yellow { background: var(--yellow); color: #000; }
+.btn.sm { padding: 7px 14px; font-size: 12px; border-radius: 7px; }
+.btn.xs { padding: 4px 10px; font-size: 11px; border-radius: 6px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      align-items: center;
-      padding: 120px 48px 80px;
-      gap: 60px;
-      position: relative;
-      overflow: hidden;
-    }
+/* ─────────────────────────────────────────
+   SCREENS
+───────────────────────────────────────── */
+.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.screen.active { display: flex; }
 
-    .hero-bg-glow {
-      position: absolute;
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(74,240,196,0.08) 0%, transparent 70%);
-      top: -100px; right: -100px;
-      pointer-events: none;
-      animation: breathe 6s ease-in-out infinite;
-    }
-    .hero-bg-glow2 {
-      position: absolute;
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
-      bottom: 0; left: 200px;
-      pointer-events: none;
-      animation: breathe 8s ease-in-out infinite reverse;
-    }
-    @keyframes breathe {
-      0%,100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.1); opacity: 0.7; }
-    }
+/* ══════════════════════════════════════
+   TITLE SCREEN
+══════════════════════════════════════ */
+#screen-title {
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(16,185,129,.08) 0%, transparent 70%);
+  gap: 0;
+  padding: 40px 20px;
+}
 
-    .hero-left { position: relative; z-index: 2; }
-    .hero-tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(74,240,196,0.08);
-      border: 1px solid rgba(74,240,196,0.2);
-      color: var(--accent);
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 6px 14px;
-      border-radius: 2px;
-      margin-bottom: 32px;
-      animation: fadeUp 0.6s ease both;
-    }
-    .hero-tag::before {
-      content: '';
-      width: 6px; height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
-      animation: pulse 2s ease-in-out infinite;
-    }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.title-logo {
+  font-size: 88px;
+  line-height: 1;
+  margin-bottom: 16px;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
 
-    h1 {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: clamp(48px, 5.5vw, 80px);
-      line-height: 1.0;
-      letter-spacing: -0.02em;
-      color: var(--white);
-      animation: fadeUp 0.6s 0.1s ease both;
-    }
-    h1 em {
-      font-style: normal;
-      color: transparent;
-      -webkit-text-stroke: 1px var(--accent);
-    }
+.title-wordmark {
+  font-size: clamp(36px, 7vw, 64px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.title-wordmark span { color: var(--green); }
 
-    .hero-desc {
-      margin-top: 28px;
-      font-size: 15px;
-      color: var(--muted);
-      max-width: 460px;
-      line-height: 1.8;
-      animation: fadeUp 0.6s 0.2s ease both;
-      font-family: 'DM Mono', monospace;
-    }
+.title-tagline {
+  color: var(--muted);
+  font-size: 15px;
+  margin-bottom: 48px;
+  letter-spacing: .5px;
+}
 
-    .hero-cta {
-      display: flex; gap: 16px; margin-top: 44px;
-      animation: fadeUp 0.6s 0.3s ease both;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: var(--bg);
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 14px 28px;
-      text-decoration: none;
-      border-radius: 2px;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(74,240,196,0.3);
-    }
-    .btn-secondary {
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 14px 28px;
-      text-decoration: none;
-      border-radius: 2px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.title-card {
+  background: var(--surf);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-    .hero-right {
-      position: relative; z-index: 2;
-      animation: fadeIn 1s 0.4s ease both;
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 28px 24px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .stat-card:hover { border-color: rgba(74,240,196,0.3); transform: translateY(-3px); }
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.3s ease;
-    }
-    .stat-card:hover::before { transform: scaleX(1); }
-    .stat-num {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 40px;
-      color: var(--white);
-      line-height: 1;
-    }
-    .stat-num span { color: var(--accent); }
-    .stat-label {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-top: 8px;
-    }
+.title-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+.or-divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 1px;
+}
+.or-divider::before, .or-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
 
-    /* ── DIVIDER ── */
-    .section-divider {
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border), transparent);
-      margin: 0 48px;
-    }
+.join-row { display: flex; gap: 8px; }
+.join-row input { flex: 1; font-family: var(--mono); letter-spacing: 3px; text-transform: uppercase; font-size: 16px; font-weight: 700; text-align: center; }
 
-    /* ── SECTIONS ── */
-    section {
-      padding: 96px 48px;
-    }
-    .section-label {
-      display: flex; align-items: center; gap: 12px;
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 16px;
-    }
-    .section-label::after {
-      content: '';
-      flex: 0 0 40px;
-      height: 1px;
-      background: var(--accent);
-      opacity: 0.4;
-    }
-    h2 {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: clamp(32px, 4vw, 52px);
-      color: var(--white);
-      line-height: 1.1;
-      letter-spacing: -0.02em;
-    }
-    h2 em {
-      font-family: 'Instrument Serif', serif;
-      font-style: italic;
-      color: var(--accent);
-      -webkit-text-stroke: 0;
-    }
+.error-msg { color: var(--red); font-size: 13px; font-weight: 600; text-align: center; min-height: 18px; }
 
-    /* ── ABOUT ── */
-    .about-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 80px;
-      margin-top: 56px;
-      align-items: start;
-    }
-    .about-text p {
-      color: var(--muted);
-      line-height: 1.9;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-    .about-text p strong { color: var(--text); font-weight: 500; }
-    .skills-list {
-      display: flex; flex-wrap: wrap; gap: 10px;
-      margin-top: 32px;
-    }
-    .skill-tag {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 6px 14px;
-      border-radius: 2px;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .skill-tag:hover { border-color: var(--accent); color: var(--accent); }
+/* ══════════════════════════════════════
+   LOBBY SCREEN
+══════════════════════════════════════ */
+#screen-lobby {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 20px;
+  overflow-y: auto;
+}
 
-    .timeline {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    .timeline-item {
-      display: flex;
-      gap: 24px;
-      padding-bottom: 36px;
-      position: relative;
-    }
-    .timeline-item:last-child { padding-bottom: 0; }
-    .timeline-line {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .timeline-dot {
-      width: 10px; height: 10px;
-      background: var(--accent);
-      border-radius: 50%;
-      flex-shrink: 0;
-      margin-top: 4px;
-    }
-    .timeline-track {
-      width: 1px;
-      flex: 1;
-      background: var(--border);
-      margin-top: 6px;
-    }
-    .timeline-item:last-child .timeline-track { display: none; }
-    .timeline-content {}
-    .timeline-year {
-      font-size: 11px;
-      color: var(--accent);
-      letter-spacing: 0.1em;
-      margin-bottom: 4px;
-    }
-    .timeline-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      color: var(--white);
-      font-size: 15px;
-      margin-bottom: 6px;
-    }
-    .timeline-desc {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
+.lobby-header {
+  text-align: center;
+}
+.lobby-header h2 { font-size: 24px; font-weight: 800; }
+.lobby-header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
 
-    /* ── PROJECTS ── */
-    #projects { background: var(--surface); }
-    .projects-header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      margin-bottom: 56px;
-    }
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
-    .project-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex; flex-direction: column;
-      transition: border-color 0.2s, transform 0.25s;
-      position: relative;
-    }
-    .project-card:hover { border-color: rgba(74,240,196,0.3); transform: translateY(-4px); }
-    .project-card.featured {
-      grid-column: span 2;
-    }
+.room-code-display {
+  background: var(--surf);
+  border: 2px solid var(--green);
+  border-radius: 16px;
+  padding: 20px 32px;
+  text-align: center;
+}
+.room-code-display .label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.room-code-display .code {
+  font-family: var(--mono); font-size: 48px; font-weight: 700;
+  letter-spacing: 12px; color: var(--green);
+}
+.room-code-display .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-    .project-thumb {
-      height: 180px;
-      background: var(--bg);
-      position: relative;
-      overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .project-card.featured .project-thumb { height: 220px; }
-    .project-thumb-inner {
-      width: 100%; height: 100%;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      position: relative;
-    }
-    /* Unique art for each card */
-    .thumb-gemrush {
-      background: linear-gradient(135deg, #0a0d14 0%, #1a0533 50%, #0d1a1f 100%);
-    }
-    .thumb-gemrush::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(circle at 30% 50%, rgba(240,164,74,0.35) 0%, transparent 45%),
-        radial-gradient(circle at 75% 30%, rgba(74,240,196,0.2) 0%, transparent 40%),
-        radial-gradient(circle at 60% 70%, rgba(139,92,246,0.25) 0%, transparent 40%);
-    }
-    .thumb-dealership {
-      background: linear-gradient(135deg, #0a0d14 0%, #0a1a1a 100%);
-    }
-    .thumb-dealership::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        90deg, transparent, transparent 60px,
-        rgba(74,240,196,0.04) 60px, rgba(74,240,196,0.04) 61px
-      ),
-      repeating-linear-gradient(
-        0deg, transparent, transparent 60px,
-        rgba(74,240,196,0.04) 60px, rgba(74,240,196,0.04) 61px
-      );
-    }
-    .thumb-vertex {
-      background: linear-gradient(135deg, #0a0d14 0%, #1a1030 100%);
-    }
-    .thumb-vertex::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: conic-gradient(from 0deg at 50% 50%,
-        rgba(139,92,246,0.15) 0deg, transparent 60deg,
-        rgba(74,240,196,0.15) 120deg, transparent 180deg,
-        rgba(240,164,74,0.1) 240deg, transparent 300deg,
-        rgba(139,92,246,0.1) 360deg);
-    }
-    .thumb-trident {
-      background: linear-gradient(135deg, #050d1a 0%, #0a1520 100%);
-    }
-    .thumb-trident::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(circle at 50% 40%, rgba(74,240,196,0.3) 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, rgba(74,240,196,0.1) 0%, transparent 30%);
-    }
-    .thumb-dozers {
-      background: linear-gradient(135deg, #0d0a00 0%, #1a1000 100%);
-    }
-    .thumb-dozers::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 50% 100%, rgba(240,164,74,0.4) 0%, transparent 60%),
-        radial-gradient(circle at 80% 20%, rgba(240,80,20,0.2) 0%, transparent 40%);
-    }
+.lobby-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 700px;
+}
 
-    .thumb-label {
-      position: relative; z-index: 1;
-      color: rgba(255,255,255,0.15);
-      font-size: 10px;
-    }
+.lobby-panel {
+  background: var(--surf);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.lobby-panel h3 { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
 
-    .project-body { padding: 22px 22px 26px; flex: 1; display: flex; flex-direction: column; }
-    .project-type {
-      font-size: 10px;
-      color: var(--accent);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    .project-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 17px;
-      color: var(--white);
-      margin-bottom: 10px;
-      line-height: 1.3;
-    }
-    .project-desc {
-      font-size: 12.5px;
-      color: var(--muted);
-      line-height: 1.8;
-      flex: 1;
-      margin-bottom: 20px;
-    }
-    .project-link {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-      text-decoration: none;
-      transition: gap 0.2s;
-    }
-    .project-link:hover { gap: 10px; }
-    .project-link svg { width: 12px; height: 12px; }
+.player-list { display: flex; flex-direction: column; gap: 8px; }
 
-    /* ── EXPERIENCE ── */
-    .experience-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 56px;
-    }
-    .exp-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 32px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s;
-    }
-    .exp-card:hover { border-color: rgba(74,240,196,0.25); }
-    .exp-card.highlight { border-color: rgba(74,240,196,0.2); }
-    .exp-card.highlight::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--accent3));
-    }
-    .exp-icon {
-      width: 44px; height: 44px;
-      border-radius: 4px;
-      background: rgba(74,240,196,0.08);
-      border: 1px solid rgba(74,240,196,0.15);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 20px;
-      font-size: 20px;
-    }
-    .exp-icon.orange { background: rgba(240,164,74,0.08); border-color: rgba(240,164,74,0.15); }
-    .exp-icon.purple { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.15); }
-    .exp-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 18px;
-      color: var(--white);
-      margin-bottom: 6px;
-    }
-    .exp-role {
-      font-size: 12px;
-      color: var(--accent);
-      letter-spacing: 0.06em;
-      margin-bottom: 16px;
-    }
-    .exp-desc {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.8;
-    }
-    .exp-badges {
-      display: flex; flex-wrap: wrap; gap: 8px;
-      margin-top: 20px;
-    }
-    .badge {
-      font-size: 10px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 2px;
-    }
-    .badge-green { background: rgba(74,240,196,0.1); color: var(--accent); }
-    .badge-orange { background: rgba(240,164,74,0.1); color: var(--accent2); }
-    .badge-purple { background: rgba(139,92,246,0.1); color: var(--accent3); }
+.player-lobby-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px;
+  animation: popIn .25s ease;
+}
+@keyframes popIn { from { opacity:0; transform:scale(.95) } to { opacity:1; transform:scale(1) } }
 
-    /* ── HOBBIES ── */
-    .hobbies-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-top: 56px;
-    }
-    .hobby-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 28px 24px;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .hobby-card:hover { border-color: rgba(74,240,196,0.25); transform: translateY(-3px); }
-    .hobby-icon { font-size: 28px; margin-bottom: 14px; }
-    .hobby-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--white);
-      margin-bottom: 10px;
-    }
-    .hobby-desc {
-      font-size: 12.5px;
-      color: var(--muted);
-      line-height: 1.8;
-    }
-    .hobby-desc strong { color: var(--text); font-weight: 500; }
+.player-lobby-row .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #000; flex-shrink: 0;
+}
+.player-lobby-row .info { flex: 1; min-width: 0; }
+.player-lobby-row .pname { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-lobby-row .prole { font-size: 11px; color: var(--muted); }
+.host-crown { font-size: 14px; }
 
-    @media (max-width: 900px) {
-      .hobbies-grid { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 560px) {
-      .hobbies-grid { grid-template-columns: 1fr; }
-    }
+.lobby-rules { display: flex; flex-direction: column; gap: 8px; }
+.rule-item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.rule-item .ri { flex-shrink: 0; font-size: 16px; }
 
-    /* ── CONTACT ── */
-    #contact { background: var(--surface); }
-    .contact-inner {
-      max-width: 720px;
-    }
-    .contact-links {
-      display: flex; flex-direction: column; gap: 12px;
-      margin-top: 48px;
-    }
-    .contact-link {
-      display: flex; align-items: center; justify-content: space-between;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 20px 24px;
-      text-decoration: none;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .contact-link:hover { border-color: rgba(74,240,196,0.3); transform: translateX(4px); }
-    .contact-link-left { display: flex; align-items: center; gap: 16px; }
-    .contact-link-icon { font-size: 18px; }
-    .contact-link-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--white);
-    }
-    .contact-link-url { font-size: 12px; color: var(--muted); }
-    .contact-arrow { color: var(--accent); font-size: 18px; }
+.lobby-actions { display: flex; gap: 10px; width: 100%; max-width: 700px; }
+.lobby-actions .btn { flex: 1; padding: 14px; font-size: 15px; }
 
-    /* ── FOOTER ── */
-    footer {
-      padding: 36px 48px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .footer-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 14px;
-      color: var(--white);
-    }
-    .footer-copy { font-size: 12px; color: var(--muted); }
+.waiting-note { color: var(--muted); font-size: 13px; text-align: center; }
 
-    /* ── SCROLL ANIMATIONS ── */
-    .reveal {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    .reveal.visible { opacity: 1; transform: none; }
-    .reveal-delay-1 { transition-delay: 0.1s; }
-    .reveal-delay-2 { transition-delay: 0.2s; }
-    .reveal-delay-3 { transition-delay: 0.3s; }
+/* ══════════════════════════════════════
+   GAME SCREEN
+══════════════════════════════════════ */
+#screen-game {
+  flex-direction: column;
+  height: 100%;
+}
 
-    /* ── RESPONSIVE ── */
-    @media (max-width: 900px) {
-      nav { padding: 16px 24px; }
-      .nav-links { display: none; }
-      .hero { grid-template-columns: 1fr; padding: 100px 24px 60px; }
-      .about-grid { grid-template-columns: 1fr; gap: 48px; }
-      .projects-grid { grid-template-columns: 1fr; }
-      .project-card.featured { grid-column: span 1; }
-      .experience-grid { grid-template-columns: 1fr; }
-      section { padding: 64px 24px; }
-      .section-divider { margin: 0 24px; }
-      footer { padding: 28px 24px; flex-direction: column; gap: 12px; text-align: center; }
-      .projects-header { flex-direction: column; align-items: flex-start; gap: 20px; }
-    }
-  </style>
+/* ── Header ── */
+#game-header {
+  background: var(--surf);
+  border-bottom: 1.5px solid var(--border);
+  padding: 0 16px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+#game-header .logo { font-size: 20px; font-weight: 800; color: var(--green); letter-spacing: -1px; }
+#game-header .logo span { color: var(--text); }
+
+.hstat {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 11px;
+  font-size: 12px; font-family: var(--mono);
+}
+.hstat .hl { color: var(--muted); font-size: 10px; font-family: var(--font); font-weight: 700; letter-spacing: .5px; }
+.hstat .hv { font-weight: 600; }
+.hstat.money .hv { color: var(--green); }
+.hstat.rep .hv { color: var(--orange); }
+.hstat.timer .hv { color: var(--yellow); }
+
+#day-pill {
+  background: var(--blue-lo); border: 1px solid var(--blue); color: var(--blue);
+  border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 700;
+}
+#phase-pill {
+  border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  border: 1px solid;
+}
+#phase-pill.playing { background: var(--green-lo); color: var(--green); border-color: var(--green); }
+#phase-pill.shop    { background: var(--blue-lo);  color: var(--blue);  border-color: var(--blue);  }
+#phase-pill.lobby   { background: var(--surf2);    color: var(--muted); border-color: var(--border); }
+
+#header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* ── Players bar ── */
+#players-bar {
+  background: var(--surf);
+  border-bottom: 1.5px solid var(--border);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+#players-bar::-webkit-scrollbar { height: 0; }
+
+.pchip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px 3px 4px;
+  font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.pchip .dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #000; }
+.pchip .pscore { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.pchip.me { border-color: var(--green); }
+
+/* ── Event banner ── */
+#event-banner {
+  display: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid;
+  flex-shrink: 0;
+}
+#event-banner.rush    { background: var(--orange-lo); color: var(--orange); border-color: var(--orange); }
+#event-banner.sale    { background: var(--green-lo);  color: var(--green);  border-color: var(--green);  }
+#event-banner.theft   { background: var(--red-lo);    color: var(--red);    border-color: var(--red);    animation: blink .5s ease-in-out infinite alternate; }
+#event-banner.default { background: var(--yellow-lo); color: var(--yellow); border-color: var(--yellow); }
+@keyframes blink { from { opacity:1 } to { opacity:.6 } }
+#event-banner.active { display: flex; }
+#theft-btn { margin-left: auto; }
+
+/* ── Shop banner ── */
+#shop-banner {
+  display: none; padding: 8px 16px;
+  background: var(--blue-lo); border-bottom: 1px solid var(--blue);
+  color: var(--blue); font-size: 13px; font-weight: 700;
+  align-items: center; gap: 10px; flex-shrink: 0;
+}
+#shop-banner.active { display: flex; }
+
+/* ── Game body ── */
+#game-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Main panel ── */
+#main-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+#tabs {
+  display: flex;
+  background: var(--surf);
+  border-bottom: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+.tab {
+  padding: 10px 20px; font-size: 13px; font-weight: 700;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  color: var(--muted); transition: color .15s, border-color .15s;
+  user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+.tab-pane { display: none; flex: 1; overflow-y: auto; padding: 14px; }
+.tab-pane.active { display: block; }
+.tab-pane::-webkit-scrollbar { width: 4px; }
+.tab-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── Customers ── */
+#customer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.ccard {
+  background: var(--surf);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s, box-shadow .15s;
+  position: relative;
+  overflow: hidden;
+}
+.ccard:hover { border-color: var(--green); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(16,185,129,.12); }
+.ccard:active { transform: translateY(0); }
+.ccard.vip { border-color: var(--yellow); }
+.ccard.vip:hover { border-color: var(--yellow); box-shadow: 0 8px 24px rgba(234,179,8,.2); }
+.ccard.urgent { border-color: var(--red); }
+
+.ccard .pbar {
+  position: absolute; bottom: 0; left: 0;
+  height: 3px; border-radius: 0 2px 0 0;
+  transition: width 1s linear;
+}
+.pbar.ok { background: var(--green); }
+.pbar.warn { background: var(--yellow); }
+.pbar.bad { background: var(--red); }
+
+.ccard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cemoji { font-size: 26px; }
+.cname { font-size: 13px; font-weight: 700; }
+.ctype { font-size: 11px; color: var(--muted); }
+
+.cwants { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.wtag {
+  background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 8px;
+  font-size: 11px; font-family: var(--mono);
+}
+.vip .wtag { border-color: var(--yellow); }
+
+.serve-label { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: .5px; }
+.vip .serve-label { color: var(--yellow); }
+
+#no-customers { text-align: center; padding: 60px 20px; color: var(--muted); }
+#no-customers .emoji { font-size: 48px; margin-bottom: 12px; }
+
+/* ── Inventory / shop ── */
+.section-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  letter-spacing: 1px; text-transform: uppercase;
+  padding-bottom: 10px; display: block;
+}
+
+.inv-table { width: 100%; border-collapse: collapse; }
+.inv-table th {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  letter-spacing: .5px; text-transform: uppercase;
+  padding: 0 8px 8px; text-align: left;
+}
+.inv-table th.center { text-align: center; }
+.inv-table td { padding: 6px 8px; border-top: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+.inv-table tr:hover td { background: var(--surf2); }
+
+.emoji-cell { font-size: 20px; width: 36px; text-align: center; }
+.pname-cell { font-weight: 600; }
+.pcat-cell  { font-size: 11px; color: var(--muted); }
+.stock-cell { text-align: center; font-family: var(--mono); font-weight: 600; }
+.stock-lo { color: var(--red); }
+.stock-ok { color: var(--green); }
+
+.price-input, .qty-input {
+  width: 62px; background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text); padding: 5px 8px;
+  font-family: var(--mono); font-size: 12px; text-align: center; outline: none;
+}
+.price-input:focus, .qty-input:focus { border-color: var(--blue); }
+
+.toggle {
+  width: 36px; height: 20px; background: var(--border); border-radius: 10px;
+  cursor: pointer; position: relative; border: none; transition: background .2s;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; background: #fff; border-radius: 50%;
+  transition: transform .2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+
+/* ── Upgrades ── */
+.upg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+
+.upg-card {
+  background: var(--surf); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: border-color .15s;
+}
+.upg-card.owned { border-color: var(--green); background: var(--green-lo); }
+.upg-card:not(.owned):hover { border-color: var(--blue); }
+.upg-emoji { font-size: 26px; }
+.upg-name  { font-size: 14px; font-weight: 700; }
+.upg-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; flex: 1; }
+.upg-cost  { font-family: var(--mono); font-size: 13px; color: var(--green); font-weight: 600; }
+.upg-owned { font-size: 12px; color: var(--green); font-weight: 700; }
+
+/* ── Sidebar ── */
+#sidebar {
+  border-left: 1.5px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; background: var(--surf);
+}
+
+.sb-section { padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sb-section h3 { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+
+.timer-big {
+  font-family: var(--mono); font-size: 36px; font-weight: 700;
+  color: var(--yellow); text-align: center; letter-spacing: -1px;
+}
+.timer-big.urgent { color: var(--red); animation: tpulse .5s ease-in-out infinite alternate; }
+.timer-big.shop-mode { color: var(--blue); font-size: 20px; }
+@keyframes tpulse { from{opacity:1} to{opacity:.3} }
+
+.rep-wrap { background: var(--surf2); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 4px; }
+.rep-fill { height: 100%; border-radius: 4px; background: var(--orange); transition: width .6s ease; }
+.rep-label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+.sb-score-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+}
+.sb-score-row:last-child { border-bottom: none; }
+.sb-score-row .sn { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.sb-score-row .sv { font-family: var(--mono); color: var(--green); font-size: 12px; }
+
+#log-area { flex: 1; overflow-y: auto; }
+#log-area::-webkit-scrollbar { width: 3px; }
+#log-area::-webkit-scrollbar-thumb { background: var(--border); }
+
+.log-entry {
+  padding: 7px 14px; font-size: 11.5px; color: var(--muted);
+  border-bottom: 1px solid var(--border); line-height: 1.5;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 10px 18px;
+  font-size: 13px; font-weight: 700;
+  z-index: 9999; transform: translateY(80px); opacity: 0;
+  transition: all .3s ease; pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.error   { border-color: var(--red);    color: var(--red);    }
+#toast.success { border-color: var(--green);  color: var(--green);  }
+#toast.vip     { border-color: var(--yellow); color: var(--yellow); }
+
+/* ── Code input uppercase ── */
+#join-code { text-transform: uppercase; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  #game-body { grid-template-columns: 1fr; }
+  #sidebar { display: none; }
+}
+</style>
 </head>
 <body>
 
-  <!-- Custom Cursor -->
-  <div class="cursor" id="cursor"></div>
-  <div class="cursor-ring" id="cursorRing"></div>
+<!-- ══════════════ TITLE SCREEN ══════════════ -->
+<div id="screen-title" class="screen active">
+  <div class="title-logo">🛒</div>
+  <div class="title-wordmark">Fresh<span>Mart</span></div>
+  <div class="title-tagline">Run a supermarket together — multiplayer store management</div>
 
-  <!-- Navigation -->
-  <nav>
-    <div class="nav-logo">L<span>.</span>Palmquist</div>
-    <ul class="nav-links">
-      <li><a href="#about">About</a></li>
-      <li><a href="#projects">Projects</a></li>
-      <li><a href="#experience">Experience</a></li>
-      <li><a href="#hobbies">Hobbies</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
-  </nav>
+  <div class="title-card">
+    <div>
+      <h2>Create a new store</h2>
+      <p style="font-size:13px;color:var(--muted);margin-top:4px">Host a room — share the code with friends</p>
+    </div>
+    <input id="create-name" type="text" placeholder="Your name..." maxlength="20">
+    <button class="btn" onclick="handleCreate()">🏪 Create Room</button>
 
-  <!-- Hero -->
-  <section class="hero" id="home">
-    <div class="hero-bg-glow"></div>
-    <div class="hero-bg-glow2"></div>
-    <div class="hero-left">
-      <div class="hero-tag">Engineering Student & Builder</div>
-      <h1>Lucas<br/><em>Palmquist</em></h1>
-      <p class="hero-desc">
-        I build things — websites, robots, communities, and brands. Engineering student with a track record of shipping real projects and leading real teams.
-      </p>
-      <div class="hero-cta">
-        <a href="#projects" class="btn-primary">View Work</a>
-        <a href="#contact" class="btn-secondary">Get in Touch</a>
+    <div class="or-divider">OR</div>
+
+    <div>
+      <h2>Join a store</h2>
+      <p style="font-size:13px;color:var(--muted);margin-top:4px">Enter the 4-letter code from your host</p>
+    </div>
+    <input id="join-name" type="text" placeholder="Your name..." maxlength="20">
+    <div class="join-row">
+      <input id="join-code" type="text" placeholder="CODE" maxlength="4" autocomplete="off" spellcheck="false">
+      <button class="btn secondary" onclick="handleJoin()">Join →</button>
+    </div>
+    <div class="error-msg" id="join-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════ LOBBY SCREEN ══════════════ -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-header">
+    <h2>🛒 FreshMart Lobby</h2>
+    <p>Waiting for players to join...</p>
+  </div>
+
+  <div class="room-code-display">
+    <div class="label">Room Code — Share with friends!</div>
+    <div class="code" id="lobby-code">····</div>
+    <div class="hint">Open this page and enter the code above to join</div>
+  </div>
+
+  <div style="display:flex;gap:8px;width:100%;max-width:700px;align-items:center">
+    <input id="lobby-name-input" type="text" placeholder="Your display name..." maxlength="20"
+      style="max-width:260px;font-size:14px">
+    <button class="btn secondary sm" onclick="updateLobbyName()">Update Name</button>
+    <button class="btn xs secondary" onclick="copyCode()" style="margin-left:auto">📋 Copy Code</button>
+  </div>
+
+  <div class="lobby-main">
+    <div class="lobby-panel">
+      <h3>Players (<span id="player-count">0</span>/6)</h3>
+      <div class="player-list" id="lobby-player-list"></div>
+    </div>
+    <div class="lobby-panel">
+      <h3>How to Play</h3>
+      <div class="lobby-rules">
+        <div class="rule-item"><span class="ri">🧑</span><span>Click customers to serve them before patience runs out</span></div>
+        <div class="rule-item"><span class="ri">📦</span><span>Restock shelves between days to keep inventory full</span></div>
+        <div class="rule-item"><span class="ri">💰</span><span>Adjust prices to maximize profit</span></div>
+        <div class="rule-item"><span class="ri">⚡</span><span>Survive random events like thefts and inspections</span></div>
+        <div class="rule-item"><span class="ri">⬆️</span><span>Buy upgrades to boost your store performance</span></div>
+        <div class="rule-item"><span class="ri">👑</span><span>Only the host can start the game and advance days</span></div>
       </div>
     </div>
-    <div class="hero-right">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-num">5<span>+</span></div>
-          <div class="stat-label">Web Projects Built</div>
+  </div>
+
+  <div class="lobby-actions">
+    <button class="btn" id="start-btn" onclick="socket.emit('startGame')">🚀 Open the Store!</button>
+    <button class="btn secondary" onclick="leaveRoom()">← Leave</button>
+  </div>
+  <div class="waiting-note" id="lobby-waiting">Waiting for host to start...</div>
+</div>
+
+<!-- ══════════════ GAME SCREEN ══════════════ -->
+<div id="screen-game" class="screen">
+
+  <!-- Header -->
+  <div id="game-header">
+    <div class="logo">Fresh<span>Mart</span></div>
+    <div class="hstat money"><span class="hl">CASH</span><span class="hv" id="h-money">$200</span></div>
+    <div class="hstat rep"><span class="hl">REP</span><span class="hv" id="h-rep">100%</span></div>
+    <div class="hstat"><span class="hl">STORE</span><span class="hv" id="h-score">$0</span></div>
+    <div class="hstat timer" id="h-timer" style="display:none"><span class="hl">TIME</span><span class="hv" id="h-time">2:00</span></div>
+    <div id="day-pill">Day 1</div>
+    <div id="phase-pill" class="lobby">LOBBY</div>
+    <div id="header-right">
+      <button class="btn secondary xs" onclick="socket.emit('resetGame')">🔄 Reset</button>
+      <button class="btn secondary xs" onclick="leaveRoom()">← Leave</button>
+    </div>
+  </div>
+
+  <!-- Players bar -->
+  <div id="players-bar"></div>
+
+  <!-- Event banner -->
+  <div id="event-banner">
+    <span id="event-text"></span>
+    <button class="btn red sm" id="theft-btn" style="display:none" onclick="socket.emit('stopThief')">🚨 STOP THIEF!</button>
+  </div>
+
+  <!-- Shop banner -->
+  <div id="shop-banner">
+    🌙 Shop Phase — Restock & buy upgrades. Only the host can start the next day.
+    <button class="btn blue sm" id="next-day-btn" onclick="socket.emit('nextDay')" style="margin-left:auto;display:none">▶ Start Day</button>
+  </div>
+
+  <!-- Body -->
+  <div id="game-body">
+    <!-- Main panel -->
+    <div id="main-panel">
+      <div id="tabs">
+        <div class="tab active" data-tab="customers" onclick="switchTab('customers')">🧑 Customers</div>
+        <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">📋 Inventory</div>
+        <div class="tab" data-tab="shop" onclick="switchTab('shop')">🛍️ Restock</div>
+        <div class="tab" data-tab="upgrades" onclick="switchTab('upgrades')">⬆️ Upgrades</div>
+      </div>
+
+      <!-- Customers -->
+      <div class="tab-pane active" id="pane-customers">
+        <div id="no-customers">
+          <div class="emoji">😴</div>
+          <p>No customers right now...</p>
+          <p style="font-size:12px;margin-top:6px">They'll arrive once the store opens!</p>
         </div>
-        <div class="stat-card">
-          <div class="stat-num">4<span>yr</span></div>
-          <div class="stat-label">FRC Robotics</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">3<span>yr</span></div>
-          <div class="stat-label">Design Lead</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-num">1<span>st</span></div>
-          <div class="stat-label">Org Founded</div>
-        </div>
+        <div id="customer-grid"></div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="tab-pane" id="pane-inventory">
+        <span class="section-label">Stock Levels &amp; Pricing</span>
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th></th><th>Product</th>
+              <th class="center">Stock</th><th class="center">Price ($)</th><th class="center">Shelf</th>
+            </tr>
+          </thead>
+          <tbody id="inv-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Restock -->
+      <div class="tab-pane" id="pane-shop">
+        <span class="section-label">Restock — Only available during Shop Phase</span>
+        <table class="inv-table">
+          <thead>
+            <tr><th></th><th>Product</th><th>Cost/unit</th><th class="center">Stock</th><th>Qty</th><th></th></tr>
+          </thead>
+          <tbody id="shop-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Upgrades -->
+      <div class="tab-pane" id="pane-upgrades">
+        <span class="section-label">Store Upgrades — Purchase during Shop Phase</span>
+        <div class="upg-grid" id="upg-grid"></div>
       </div>
     </div>
-  </section>
 
-  <div class="section-divider"></div>
-
-  <!-- About -->
-  <section id="about">
-    <div class="section-label">Who I Am</div>
-    <h2>Engineer by degree,<br/><em>builder</em> by nature.</h2>
-    <div class="about-grid">
-      <div class="about-text reveal">
-        <p>I'm an <strong>engineering student</strong> who doesn't wait for class to build things. From robotics competitions to full-stack web apps, I've consistently found ways to create, lead, and ship.</p>
-        <p>My background spans <strong>frontend development</strong>, <strong>mechanical design</strong>, <strong>brand identity</strong>, and <strong>community organizing</strong>. I founded my own web studio, Vertex Interactive, and co-founded an active storm chasing team — because why stick to one thing when you can do all of them well?</p>
-        <p>In high school I completed <strong>4 years of Honors Engineering PLTW</strong>, was inducted into the <strong>National Honor Society</strong>, and earned the rank of <strong>Eagle Scout</strong> — the highest honor in Scouting — during my senior year.</p>
-        <p>I'm most energized by projects that mix technical depth with design thinking, especially when there's a real team involved and something real at stake.</p>
-        <div class="skills-list">
-          <span class="skill-tag">HTML / CSS / JS</span>
-          <span class="skill-tag">React</span>
-          <span class="skill-tag">Node.js</span>
-          <span class="skill-tag">Adobe Illustrator</span>
-          <span class="skill-tag">Photoshop</span>
-          <span class="skill-tag">After Effects</span>
-          <span class="skill-tag">CAD / Mechanical Design</span>
-          <span class="skill-tag">Team Leadership</span>
-          <span class="skill-tag">Brand Design</span>
-          <span class="skill-tag">Railway / Deployment</span>
-          <span class="skill-tag">3D Printing</span>
-        </div>
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sb-section">
+        <h3>Day Timer</h3>
+        <div class="timer-big" id="sb-timer">—</div>
       </div>
-      <div class="reveal reveal-delay-1">
-        <div class="timeline">
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">Present</div>
-              <div class="timeline-title">Engineering Student</div>
-              <div class="timeline-desc">Pursuing an engineering degree while continuing to ship personal and freelance projects.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">Ongoing</div>
-              <div class="timeline-title">Founder — Dozers Live Storm Chasing</div>
-              <div class="timeline-desc">Co-founded and moderate an active storm chasing team and community platform.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">3 Years</div>
-              <div class="timeline-title">Design Team Lead — FRC Team 4296</div>
-              <div class="timeline-desc">Led mechanical and visual design for Trident Robotics across three competition seasons.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">Senior Year</div>
-              <div class="timeline-title">Eagle Scout</div>
-              <div class="timeline-desc">Earned the rank of Eagle Scout — the highest distinction in the Boy Scouts of America.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">High School</div>
-              <div class="timeline-title">National Honor Society</div>
-              <div class="timeline-desc">Inducted into NHS, recognizing academic excellence, leadership, service, and character.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">4 Years</div>
-              <div class="timeline-title">Honors Engineering — PLTW</div>
-              <div class="timeline-desc">Completed four years of Project Lead The Way Honors Engineering, building a strong technical foundation in engineering design and applied problem-solving.</div>
-            </div>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-line">
-              <div class="timeline-dot"></div>
-              <div class="timeline-track"></div>
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-year">Ongoing</div>
-              <div class="timeline-title">Founder — Vertex Interactive</div>
-              <div class="timeline-desc">Running a solo digital studio offering web development, app development, and branding services.</div>
-            </div>
-          </div>
-        </div>
+      <div class="sb-section">
+        <h3>Reputation</h3>
+        <div class="rep-wrap"><div class="rep-fill" id="rep-fill" style="width:100%"></div></div>
+        <div class="rep-label" id="rep-label">100%</div>
       </div>
+      <div class="sb-section">
+        <h3>Leaderboard</h3>
+        <div id="sb-scores"></div>
+      </div>
+      <div class="sb-section" style="flex-shrink:0">
+        <h3>Event Log</h3>
+      </div>
+      <div id="log-area"></div>
     </div>
-  </section>
+  </div>
+</div>
 
-  <div class="section-divider"></div>
+<!-- Toast -->
+<div id="toast"></div>
 
-  <!-- Projects -->
-  <section id="projects">
-    <div class="projects-header reveal">
-      <div>
-        <div class="section-label">What I've Built</div>
-        <h2>Projects &amp; <em>Work</em></h2>
+<script>
+// ── State ──────────────────────────────────────────
+const socket = io();
+let myId = null;
+let roomState = null;
+let myRoomCode = null;
+
+// ── Screen management ──────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ── Socket setup ───────────────────────────────────
+socket.on('connect', () => { myId = socket.id; });
+
+socket.on('roomJoined', ({ code, playerId }) => {
+  myId = playerId;
+  myRoomCode = code;
+  document.getElementById('lobby-code').textContent = code;
+  show('lobby');
+});
+
+socket.on('joinError', (msg) => {
+  document.getElementById('join-error').textContent = msg;
+  setTimeout(() => document.getElementById('join-error').textContent = '', 4000);
+});
+
+socket.on('roomState', (state) => {
+  roomState = state;
+  renderAll(state);
+});
+
+socket.on('serveResult', ({ ok, earned, isVip, msg }) => {
+  if (ok) showToast(`+$${earned}${isVip ? ' ⭐ VIP BONUS!' : ''}`, isVip ? 'vip' : 'success');
+  else showToast(msg, 'error');
+});
+
+socket.on('msg', ({ type, text }) => showToast(text, type));
+
+// ── Title Screen Actions ───────────────────────────
+function handleCreate() {
+  const name = document.getElementById('create-name').value.trim();
+  socket.emit('createRoom', { name: name || 'Player 1' });
+}
+
+function handleJoin() {
+  const name = document.getElementById('join-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!code || code.length < 2) { document.getElementById('join-error').textContent = 'Enter a room code!'; return; }
+  socket.emit('joinRoom', { code, name: name || '' });
+}
+
+document.getElementById('create-name').addEventListener('keydown', e => { if (e.key==='Enter') handleCreate(); });
+document.getElementById('join-code').addEventListener('keydown',  e => { if (e.key==='Enter') handleJoin(); });
+document.getElementById('join-name').addEventListener('keydown',  e => { if (e.key==='Enter') handleJoin(); });
+
+function updateLobbyName() {
+  const name = document.getElementById('lobby-name-input').value.trim();
+  if (name) socket.emit('setName', { name });
+}
+document.getElementById('lobby-name-input').addEventListener('keydown', e => { if (e.key==='Enter') updateLobbyName(); });
+
+function copyCode() {
+  if (myRoomCode) navigator.clipboard.writeText(myRoomCode).then(() => showToast('Code copied!', 'success'));
+}
+
+function leaveRoom() {
+  socket.emit('leaveRoom');
+  myRoomCode = null; roomState = null;
+  show('title');
+}
+
+// ── Render All ─────────────────────────────────────
+function renderAll(s) {
+  const isGame = s.phase !== 'lobby';
+
+  if (isGame && document.getElementById('screen-lobby').classList.contains('active')) {
+    show('game');
+  } else if (!isGame && document.getElementById('screen-game').classList.contains('active')) {
+    show('lobby');
+  } else if (s.phase === 'lobby') {
+    renderLobby(s);
+    return;
+  }
+
+  if (s.phase === 'lobby') { renderLobby(s); return; }
+
+  renderHeader(s);
+  renderPlayers(s);
+  renderEventBanner(s);
+  renderShopBanner(s);
+  renderCustomers(s);
+  renderInventory(s);
+  renderShop(s);
+  renderUpgrades(s);
+  renderSidebar(s);
+}
+
+// ── Lobby ──────────────────────────────────────────
+function renderLobby(s) {
+  document.getElementById('lobby-code').textContent = s.code;
+  const players = Object.values(s.players);
+  document.getElementById('player-count').textContent = players.length;
+
+  const list = document.getElementById('lobby-player-list');
+  list.innerHTML = '';
+  players.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'player-lobby-row';
+    row.innerHTML = `
+      <div class="avatar" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
+      <div class="info">
+        <div class="pname">${p.name}${p.id===myId?' <span style="font-size:10px;color:var(--green)">(you)</span>':''}</div>
+        <div class="prole">${p.role}</div>
       </div>
-    </div>
-    <div class="projects-grid">
+      ${p.id===s.hostId ? '<span class="host-crown" title="Host">👑</span>' : ''}
+    `;
+    list.appendChild(row);
+  });
 
-      <!-- GemRush - featured -->
-      <div class="project-card featured reveal">
-        <div class="project-thumb thumb-gemrush">
-          <div class="project-thumb-inner"><span class="thumb-label">gemrush</span></div>
-        </div>
-        <div class="project-body">
-          <div class="project-type">Full-Stack Web App</div>
-          <div class="project-name">GemRush</div>
-          <div class="project-desc">A fully deployed web application hosted on Railway. Built and shipped as a solo project, demonstrating full-stack development from frontend design through backend deployment.</div>
-          <a href="https://gemrush-production.up.railway.app/" target="_blank" class="project-link">
-            Visit Site
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-      </div>
+  const isHost = s.hostId === myId;
+  document.getElementById('start-btn').style.display = isHost ? 'block' : 'none';
+  document.getElementById('lobby-waiting').style.display = isHost ? 'none' : 'block';
 
-      <!-- Vertex Interactive -->
-      <div class="project-card reveal reveal-delay-1">
-        <div class="project-thumb thumb-vertex">
-          <div class="project-thumb-inner"><span class="thumb-label">vertex</span></div>
-        </div>
-        <div class="project-body">
-          <div class="project-type">Studio Website</div>
-          <div class="project-name">Vertex Interactive</div>
-          <div class="project-desc">The brand site for my own digital studio, offering web dev, app development, and branding to clients.</div>
-          <a href="https://darkshockgamer.github.io/vertex-interactive/" target="_blank" class="project-link">
-            Visit Site
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-      </div>
+  // pre-fill name
+  const me = s.players[myId];
+  if (me && !document.getElementById('lobby-name-input').value) {
+    document.getElementById('lobby-name-input').value = me.name;
+  }
+}
 
-      <!-- Dealership Sim -->
-      <div class="project-card reveal">
-        <div class="project-thumb thumb-dealership">
-          <div class="project-thumb-inner"><span class="thumb-label">sim</span></div>
-        </div>
-        <div class="project-body">
-          <div class="project-type">Browser Game</div>
-          <div class="project-name">Dealership Sim</div>
-          <div class="project-desc">A browser-based dealership simulation game built for fun, showcasing game logic and interactive UI design.</div>
-          <a href="https://darkshockgamer.github.io/dealership-sim/" target="_blank" class="project-link">
-            Play Game
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-      </div>
+// ── Header ─────────────────────────────────────────
+function renderHeader(s) {
+  document.getElementById('h-money').textContent = '$' + s.money;
+  document.getElementById('h-rep').textContent   = s.reputation + '%';
+  document.getElementById('h-score').textContent = '$' + s.totalScore;
+  document.getElementById('day-pill').textContent = 'Day ' + s.day;
 
-      <!-- Trident Robotics -->
-      <div class="project-card reveal reveal-delay-1">
-        <div class="project-thumb thumb-trident">
-          <div class="project-thumb-inner"><span class="thumb-label">team 4296</span></div>
-        </div>
-        <div class="project-body">
-          <div class="project-type">Team Website</div>
-          <div class="project-name">Trident Robotics — Team 4296</div>
-          <div class="project-desc">Official site for FRC Team 4296, designed and built as part of my 4-year tenure and 3-year design lead role.</div>
-          <a href="https://darkshockgamer.github.io/" target="_blank" class="project-link">
-            Visit Site
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-      </div>
+  const phEl = document.getElementById('phase-pill');
+  phEl.className = 'phase-pill ' + s.phase; // wait for class to be set before text
+  if (s.phase === 'playing') phEl.textContent = 'OPEN';
+  else if (s.phase === 'shop') phEl.textContent = 'SHOP';
+  else phEl.textContent = 'LOBBY';
 
-      <!-- Dozers Live - featured -->
-      <div class="project-card featured reveal">
-        <div class="project-thumb thumb-dozers">
-          <div class="project-thumb-inner"><span class="thumb-label">dozers live</span></div>
-        </div>
-        <div class="project-body">
-          <div class="project-type">Community Platform · Collaboration</div>
-          <div class="project-name">Dozers Live Storm Chasing</div>
-          <div class="project-desc">A platform for the storm chasing team I co-founded and moderate. Collaborated on the site build — combining real-world community organizing with web presence.</div>
-          <a href="https://dozerslive.com/" target="_blank" class="project-link">
-            Visit Site
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-      </div>
+  // Removed incorrect 'phEl.className' reassignment
 
-    </div>
-  </section>
+  const timerEl = document.getElementById('h-timer');
+  if (s.phase === 'playing') {
+    timerEl.style.display = 'flex';
+    const m = Math.floor(s.dayTimer/60), sec = s.dayTimer%60;
+    document.getElementById('h-time').textContent = m+':'+(sec<10?'0':'')+sec;
+  } else {
+    timerEl.style.display = 'none';
+  }
+}
 
-  <div class="section-divider"></div>
+// ── Players bar ────────────────────────────────────
+function renderPlayers(s) {
+  const bar = document.getElementById('players-bar');
+  bar.innerHTML = '';
+  for (const p of Object.values(s.players)) {
+    const chip = document.createElement('div');
+    chip.className = 'pchip' + (p.id === myId ? ' me' : '');
+    chip.innerHTML = `
+      <div class="dot" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
+      <span>${p.name}</span>
+      <span class="pscore">$${p.personalScore}</span>
+      ${p.id===s.hostId?'<span title="Host" style="font-size:12px">👑</span>':''}
+    `;
+    bar.appendChild(chip);
+  }
+}
 
-  <!-- Experience -->
-  <section id="experience">
-    <div class="section-label">Roles &amp; Achievements</div>
-    <h2>Where I've <em>Led</em></h2>
-    <div class="experience-grid">
+// ── Event Banner ───────────────────────────────────
+function renderEventBanner(s) {
+  const banner = document.getElementById('event-banner');
+  const text   = document.getElementById('event-text');
+  const theftBtn = document.getElementById('theft-btn');
 
-      <div class="exp-card highlight reveal">
-        <div class="exp-icon">🤖</div>
-        <div class="exp-title">Trident Robotics — FRC Team 4296</div>
-        <div class="exp-role">Design Team Lead (3 yrs) · Driver 2025–26 · Team Member (4 yrs)</div>
-        <div class="exp-desc">Spent four years competing in FIRST Robotics, including three years as Design Team Lead — responsible for mechanical design, CAD, team coordination, and brand identity. In the 2025–26 season, stepped into the role of robot driver on the competition field. Also built the official team website.</div>
-        <div class="exp-badges">
-          <span class="badge badge-green">FRC Competition</span>
-          <span class="badge badge-green">Mechanical Design</span>
-          <span class="badge badge-purple">Team Leadership</span>
-          <span class="badge badge-orange">Robot Driver</span>
-          <span class="badge badge-green">Web Build</span>
-        </div>
-      </div>
+  if (s.theftActive) {
+    banner.className = 'event-banner active theft';
+    banner.style.display = 'flex';
+    text.textContent = '🦝 SHOPLIFTER IN THE STORE! Click the button NOW!';
+    theftBtn.style.display = 'inline-block';
+  } else if (s.activeEvent) {
+    banner.style.display = 'flex';
+    const typeClass = { rush:'rush', sale:'sale', vip:'default', spoil:'default', inspect:'default' }[s.activeEvent.type] || 'default';
+    banner.className = 'event-banner active ' + typeClass;
+    text.textContent = s.activeEvent.label + ' — ' + s.activeEvent.desc;
+    theftBtn.style.display = 'none';
+  } else {
+    banner.style.display = 'none';
+    theftBtn.style.display = 'none';
+  }
+}
 
-      <div class="exp-card highlight reveal reveal-delay-1">
-        <div class="exp-icon orange">🌪️</div>
-        <div class="exp-title">Dozers Live Storm Chasing Team</div>
-        <div class="exp-role">Founder &amp; Moderator</div>
-        <div class="exp-desc">Co-founded and continue to moderate Dozers Live, an active storm chasing community and team. Oversaw the development of the team's web presence and built out the community platform alongside collaborators.</div>
-        <div class="exp-badges">
-          <span class="badge badge-orange">Founded Organization</span>
-          <span class="badge badge-orange">Community Leadership</span>
-          <span class="badge badge-green">Web Collaboration</span>
-        </div>
-      </div>
+// ── Shop Banner ────────────────────────────────────
+function renderShopBanner(s) {
+  const sb = document.getElementById('shop-banner');
+  const nd = document.getElementById('next-day-btn');
+  if (s.phase === 'shop') {
+    sb.classList.add('active');
+    nd.style.display = s.hostId === myId ? 'inline-block' : 'none';
+  } else {
+    sb.classList.remove('active');
+    nd.style.display = 'none';
+  }
+}
 
-      <div class="exp-card reveal">
-        <div class="exp-icon purple">⚡</div>
-        <div class="exp-title">Vertex Interactive</div>
-        <div class="exp-role">Founder &amp; Lead Developer</div>
-        <div class="exp-desc">Launched a sole proprietorship digital studio focused on web development, app development, and brand design. Handles all client work, service delivery, and plans to evolve into an LLC with server-based hosting infrastructure.</div>
-        <div class="exp-badges">
-          <span class="badge badge-purple">Freelance Studio</span>
-          <span class="badge badge-green">Web Dev</span>
-          <span class="badge badge-orange">Branding</span>
-        </div>
-      </div>
+// ── Customers ──────────────────────────────────────
+function renderCustomers(s) {
+  const grid = document.getElementById('customer-grid');
+  const noC  = document.getElementById('no-customers');
 
-      <div class="exp-card reveal reveal-delay-1">
-        <div class="exp-icon">🎓</div>
-        <div class="exp-title">Engineering Student</div>
-        <div class="exp-role">Current</div>
-        <div class="exp-desc">Currently pursuing an engineering degree, applying academic learning alongside an existing portfolio of real-world projects. Combines coursework with active personal and freelance development work.</div>
-        <div class="exp-badges">
-          <span class="badge badge-green">Engineering</span>
-          <span class="badge badge-purple">Applied Projects</span>
-        </div>
-      </div>
+  if (!s.customers.length) {
+    noC.style.display = 'block';
+    grid.innerHTML = '';
+    return;
+  }
+  noC.style.display = 'none';
 
-      <div class="exp-card reveal">
-        <div class="exp-icon">🦅</div>
-        <div class="exp-title">Eagle Scout</div>
-        <div class="exp-role">Boy Scouts of America — Senior Year</div>
-        <div class="exp-desc">Earned the rank of Eagle Scout — the highest honor in the Boy Scouts of America — during senior year of high school. Represents years of leadership, service projects, and personal development.</div>
-        <div class="exp-badges">
-          <span class="badge badge-orange">Eagle Scout</span>
-          <span class="badge badge-orange">Leadership</span>
-          <span class="badge badge-orange">Community Service</span>
-        </div>
-      </div>
+  const existIds = new Set([...grid.querySelectorAll('.ccard')].map(c => Number(c.dataset.id)));
+  const incomingIds = new Set(s.customers.map(c => c.id));
 
-      <div class="exp-card reveal reveal-delay-1">
-        <div class="exp-icon">📚</div>
-        <div class="exp-title">National Honor Society &amp; PLTW</div>
-        <div class="exp-role">High School Honors</div>
-        <div class="exp-desc">Inducted into the National Honor Society for academic excellence, leadership, service, and character. Also completed 4 years of Honors Engineering through Project Lead The Way (PLTW), building a rigorous technical foundation in engineering design.</div>
-        <div class="exp-badges">
-          <span class="badge badge-purple">NHS Member</span>
-          <span class="badge badge-purple">PLTW 4 Years</span>
-          <span class="badge badge-green">Honors Engineering</span>
-        </div>
-      </div>
+  // remove gone
+  existIds.forEach(id => { if (!incomingIds.has(id)) grid.querySelector(`[data-id="${id}"]`)?.remove(); });
 
-    </div>
-  </section>
+  s.customers.forEach(c => {
+    const pct = Math.round((c.patience / c.maxPatience) * 100);
+    const barClass = pct > 60 ? 'ok' : pct > 30 ? 'warn' : 'bad';
+    let card = grid.querySelector(`[data-id="${c.id}"]`);
 
-  <div class="section-divider"></div>
+    if (!card) {
+      card = document.createElement('div');
+      card.className = 'ccard' + (c.isVip ? ' vip' : '') + (pct < 25 ? ' urgent' : '');
+      card.dataset.id = c.id;
+      card.onclick = () => socket.emit('serveCustomer', c.id);
 
-  <!-- Hobbies -->
-  <section id="hobbies">
-    <div class="section-label">Outside the Build</div>
-    <h2>How I <em>unwind</em>.</h2>
-    <div class="hobbies-grid reveal">
+      const wantsHtml = c.wants.map(w => {
+        const prod = s.products.find(p => p.id === w.id);
+        return `<span class="wtag">${prod?.emoji||'?'} ${prod?.name||w.id} ×${w.qty}</span>`;
+      }).join('');
 
-      <div class="hobby-card">
-        <div class="hobby-icon">🏎️</div>
-        <div class="hobby-name">Sim Racing</div>
-        <div class="hobby-desc">Serious sim racing setup with a <strong>Moza R5 wheel</strong>. Titles include Assetto Corsa, BeamNG.Drive, NASCAR Heat 5, and NASCAR 25. Also raced K1 Speed Teen League in real karts for a couple of years growing up.</div>
-      </div>
-
-      <div class="hobby-card">
-        <div class="hobby-icon">🎮</div>
-        <div class="hobby-name">Gaming</div>
-        <div class="hobby-desc">Regular player of <strong>OUTBRK</strong> with the Dozers Live crew, plus city-builders and strategy games like <strong>Cities: Skylines</strong> and <strong>Mini Motorways</strong>.</div>
-      </div>
-
-      <div class="hobby-card">
-        <div class="hobby-icon">🖨️</div>
-        <div class="hobby-name">3D Printing</div>
-        <div class="hobby-desc">Designing and printing parts, prototypes, and fun objects in my free time. Ties directly into the engineering and CAD work — turning digital models into physical things.</div>
-      </div>
-
-      <div class="hobby-card">
-        <div class="hobby-icon">🌪️</div>
-        <div class="hobby-name">Storm Chasing</div>
-        <div class="hobby-desc">Co-founded the Dozers Live Storm Chasing Team. Passion for severe weather and chasing storms — it's not just a hobby, it's an organization.</div>
-      </div>
-
-    </div>
-  </section>
-
-  <div class="section-divider"></div>
-
-  <!-- Contact -->
-  <section id="contact">
-    <div class="contact-inner">
-      <div class="section-label">Reach Out</div>
-      <h2>Let's <em>connect</em>.</h2>
-      <p style="color:var(--muted); margin-top:20px; font-size:14px; max-width:480px; line-height:1.8;">
-        Whether it's a project, a collaboration, or just to say hi — reach out directly or find my work at the links below.
-      </p>
-      <div class="contact-links reveal">
-        <a href="tel:2244226751" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">📞</span>
-            <div>
-              <div class="contact-link-name">Phone</div>
-              <div class="contact-link-url">224-422-6751</div>
-            </div>
+      card.innerHTML = `
+        <div class="ccard-top">
+          <span class="cemoji">${c.emoji}</span>
+          <div>
+            <div class="cname">${c.isVip ? '⭐ ' : ''}${c.name}</div>
+            <div class="ctype">${c.isVip ? 'VIP — 2× payout!' : c.wants.length+' item'+(c.wants.length>1?'s':'')}</div>
           </div>
-          <span class="contact-arrow">→</span>
-        </a>
-        <a href="mailto:lpalmquist14@gmail.com" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">✉️</span>
-            <div>
-              <div class="contact-link-name">Email</div>
-              <div class="contact-link-url">lpalmquist14@gmail.com</div>
-            </div>
-          </div>
-          <span class="contact-arrow">→</span>
-        </a>
-        <a href="https://darkshockgamer.github.io/vertex-interactive/" target="_blank" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">⚡</span>
-            <div>
-              <div class="contact-link-name">Vertex Interactive</div>
-              <div class="contact-link-url">darkshockgamer.github.io/vertex-interactive</div>
-            </div>
-          </div>
-          <span class="contact-arrow">→</span>
-        </a>
-        <a href="https://dozerslive.com/" target="_blank" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">🌪️</span>
-            <div>
-              <div class="contact-link-name">Dozers Live</div>
-              <div class="contact-link-url">dozerslive.com</div>
-            </div>
-          </div>
-          <span class="contact-arrow">→</span>
-        </a>
-        <a href="https://darkshockgamer.github.io/" target="_blank" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">🤖</span>
-            <div>
-              <div class="contact-link-name">Trident Robotics — Team 4296</div>
-              <div class="contact-link-url">darkshockgamer.github.io</div>
-            </div>
-          </div>
-          <span class="contact-arrow">→</span>
-        </a>
-        <a href="https://github.com/darkshockgamer" target="_blank" class="contact-link">
-          <div class="contact-link-left">
-            <span class="contact-link-icon">💻</span>
-            <div>
-              <div class="contact-link-name">GitHub</div>
-              <div class="contact-link-url">github.com/darkshockgamer</div>
-            </div>
-          </div>
-          <span class="contact-arrow">→</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer>
-    <div class="footer-name">Lucas Palmquist</div>
-    <div class="footer-copy">© 2026 — Engineering Student &amp; Builder</div>
-  </footer>
-
-  <script>
-    // Custom cursor
-    const cursor = document.getElementById('cursor');
-    const ring = document.getElementById('cursorRing');
-    let mx = 0, my = 0, rx = 0, ry = 0;
-    document.addEventListener('mousemove', e => {
-      mx = e.clientX; my = e.clientY;
-      cursor.style.left = mx - 5 + 'px';
-      cursor.style.top = my - 5 + 'px';
-    });
-    function animRing() {
-      rx += (mx - rx) * 0.12;
-      ry += (my - ry) * 0.12;
-      ring.style.left = rx - 17 + 'px';
-      ring.style.top = ry - 17 + 'px';
-      requestAnimationFrame(animRing);
+        </div>
+        <div class="cwants">${wantsHtml}</div>
+        <div class="serve-label">▶ CLICK TO SERVE</div>
+        <div class="pbar ${barClass}" style="width:${pct}%"></div>
+      `;
+      grid.appendChild(card);
+    } else {
+      const bar = card.querySelector('.pbar');
+      if (bar) { bar.className = 'pbar '+barClass; bar.style.width = pct+'%'; }
+      card.className = 'ccard' + (c.isVip?' vip':'') + (pct<25?' urgent':'');
     }
-    animRing();
+  });
+}
 
-    // Scroll reveal
-    const reveals = document.querySelectorAll('.reveal');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
-    }, { threshold: 0.12 });
-    reveals.forEach(el => observer.observe(el));
+// ── Inventory Table ────────────────────────────────
+function renderInventory(s) {
+  const body = document.getElementById('inv-body');
+  body.innerHTML = '';
+  s.products.forEach(p => {
+    const stock = s.inventory[p.id]||0;
+    const price = s.prices[p.id]||p.basePrice;
+    const on    = s.shelves[p.id];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="emoji-cell">${p.emoji}</td>
+      <td><div class="pname-cell">${p.name}</div><div class="pcat-cell">${p.category}</div></td>
+      <td class="stock-cell ${stock<4?'stock-lo':'stock-ok'}">${stock}</td>
+      <td><input type="number" class="price-input" min="1" max="99" value="${price}"
+            onchange="socket.emit('setPrice',{productId:'${p.id}',price:+this.value})"></td>
+      <td style="text-align:center">
+        <button class="toggle ${on?'on':''}" onclick="socket.emit('toggleShelf',{productId:'${p.id}'})"></button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+}
 
-    // Nav active state
-    const sections = document.querySelectorAll('section[id]');
-    const links = document.querySelectorAll('.nav-links a');
-    window.addEventListener('scroll', () => {
-      let current = '';
-      sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
-      links.forEach(l => {
-        l.style.color = l.getAttribute('href') === '#' + current ? 'var(--accent)' : '';
-      });
-    });
-  </script>
+// ── Shop Table ─────────────────────────────────────
+function renderShop(s) {
+  const body = document.getElementById('shop-body');
+  const isShop = s.phase === 'shop';
+  body.innerHTML = '';
+  s.products.forEach(p => {
+    const maxCap = 30 + (s.capacityBonus||0);
+    const cur    = s.inventory[p.id]||0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="emoji-cell">${p.emoji}</td>
+      <td><div class="pname-cell">${p.name}</div><div class="pcat-cell">${p.category}</div></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">$${p.cost}/u</td>
+      <td class="stock-cell ${cur<4?'stock-lo':'stock-ok'}">${cur}/${maxCap}</td>
+      <td><input type="number" class="qty-input" min="1" max="30" value="5"
+            id="qty-${p.id}" ${!isShop?'disabled':''}></td>
+      <td><button class="btn sm ${isShop?'':'secondary'}" ${!isShop?'disabled':''} style="${!isShop?'opacity:.4':''}"
+            onclick="doRestock('${p.id}')">Buy</button></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function doRestock(productId) {
+  const qty = parseInt(document.getElementById('qty-'+productId)?.value||5);
+  socket.emit('restock', { productId, qty });
+}
+
+// ── Upgrades ───────────────────────────────────────
+function renderUpgrades(s) {
+  const grid = document.getElementById('upg-grid');
+  grid.innerHTML = '';
+  const isShop = s.phase === 'shop';
+  s.upgradeList.forEach(u => {
+    const owned = s.upgrades.includes(u.id);
+    const canAfford = s.money >= u.cost;
+    const card = document.createElement('div');
+    card.className = 'upg-card' + (owned?' owned':'');
+    card.innerHTML = `
+      <div class="upg-emoji">${u.emoji}</div>
+      <div class="upg-name">${u.name}</div>
+      <div class="upg-desc">${u.desc}</div>
+      ${owned
+        ? `<div class="upg-owned">✅ Purchased</div>`
+        : `<div class="upg-cost">$${u.cost}</div>
+           <button class="btn sm ${isShop&&canAfford?'blue':'secondary'}"
+             onclick="socket.emit('buyUpgrade','${u.id}')"
+             ${!isShop||!canAfford?'disabled style="opacity:.4"':''}>
+             ${isShop ? 'Purchase' : 'Shop Phase Only'}
+           </button>`}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ── Sidebar ────────────────────────────────────────
+function renderSidebar(s) {
+  // timer
+  const t = document.getElementById('sb-timer');
+  if (s.phase === 'playing') {
+    const m = Math.floor(s.dayTimer/60), sec = s.dayTimer%60;
+    t.textContent = m+':'+(sec<10?'0':'')+sec;
+    t.className = 'timer-big' + (s.dayTimer<20?' urgent':'');
+  } else if (s.phase === 'shop') {
+    t.textContent = 'SHOP'; t.className = 'timer-big shop-mode';
+  } else {
+    t.textContent = '—'; t.className = 'timer-big';
+  }
+
+  // rep
+  document.getElementById('rep-fill').style.width  = s.reputation+'%';
+  document.getElementById('rep-label').textContent = s.reputation+'%';
+
+  // scoreboard
+  const sb = document.getElementById('sb-scores');
+  sb.innerHTML = '';
+  Object.values(s.players).sort((a,b)=>b.personalScore-a.personalScore).forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'sb-score-row';
+    row.innerHTML = `
+      <span class="sn"><span style="width:10px;height:10px;border-radius:50%;background:${p.color};display:inline-block"></span>${p.name}${p.id===myId?' <span style="font-size:10px;color:var(--green)">(you)</span>':''}</span>
+      <span class="sv">$${p.personalScore}</span>
+    `;
+    sb.appendChild(row);
+  });
+
+  // log
+  const log = document.getElementById('log-area');
+  const entries = s.eventLog||[];
+  log.innerHTML = '';
+  entries.forEach(e => {
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    el.textContent = e.msg;
+    log.appendChild(el);
+  });
+}
+
+// ── Tab switching ──────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id==='pane-'+name));
+}
+
+// ── Toast ──────────────────────────────────────────
+let _toastTimer;
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  clearTimeout(_toastTimer);
+  t.className = 'show ' + type;
+  t.textContent = msg;
+  _toastTimer = setTimeout(() => { t.className = ''; }, 2800);
+}
+</script>
 </body>
 </html>
